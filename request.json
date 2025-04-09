@@ -1,0 +1,5 @@
+{
+  "tsCode": "import * as _ from 'lodash';\nimport * as moment from 'moment';\n\nexport function formatDate(date: Date): string {\n  return moment(date).format('YYYY-MM-DD');\n}\n\nexport function sortNumbers(numbers: number[]): number[] {\n  return _.sortBy(numbers);\n}",
+  "testCode": "import { formatDate, sortNumbers } from './code';\n\ndescribe('formatDate', () => {\n  it('should format date correctly', () => {\n    const date = new Date(2023, 0, 1);\n    expect(formatDate(date)).toBe('2023-01-01');\n  });\n});\n\ndescribe('sortNumbers', () => {\n  it('should sort numbers correctly', () => {\n    expect(sortNumbers([3, 1, 2])).toEqual([1, 2, 3]);\n  });\n});",
+  "packages": ["lodash", "moment"]
+}
