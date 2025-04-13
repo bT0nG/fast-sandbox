@@ -75,6 +75,22 @@ export async function runTypeScriptTest(
         createNodeModulesSymlink(sessionDir, SANDBOX_CONFIG.NODE_MODULES_PATH);
         console.log(`[${sessionId}] 链接node_modules目录完成`);
 
+        // 验证TypeScript代码语法
+        const syntaxResult = validateTypeScriptSyntax(tsCode, tsConfig);
+        if (!syntaxResult.valid) {
+            console.error(`[${sessionId}] TypeScript语法错误:`, syntaxResult.error);
+            if (syntaxResult.details) {
+                console.error(`[${sessionId}] 详细错误信息:`, syntaxResult.details);
+            }
+            return {
+                success: false,
+                message: 'TypeScript语法错误',
+                error: syntaxResult.error,
+                result: syntaxResult.details?.join('\n')
+            };
+        }
+        console.log(`[${sessionId}] TypeScript语法验证通过`);
+
         // 如果请求中包含要安装的包，则安装它们
         if (packages && packages.length > 0) {
             console.log(`[${sessionId}] 尝试安装请求的npm包: ${packages.join(', ')}`);

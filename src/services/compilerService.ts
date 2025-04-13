@@ -165,24 +165,141 @@ export async function compileTypeScript(sessionDir: string, sessionId: string): 
 
 /**
  * 在沙箱中验证TypeScript代码的语法
+ * @param code TypeScript代码字符串
+ * @param options 可选的TypeScript配置选项
+ * @returns 验证结果对象
  */
-export function validateTypeScriptSyntax(code: string): { valid: boolean; error?: string } {
+export function validateTypeScriptSyntax(
+    code: string,
+    options: {
+        target?: string;
+        module?: string;
+        strict?: boolean;
+        noImplicitAny?: boolean;
+    } = {}
+): {
+    valid: boolean;
+    error?: string;
+    details?: string[];
+    config?: {
+        target: string;
+        module: string;
+        strict: boolean;
+        noImplicitAny: boolean;
+        [key: string]: any;
+    };
+    diagnostics?: Array<{
+        file: string;
+        line: number;
+        character: number;
+        message: string;
+        code: number;
+    }>;
+} {
+    const tempDir = path.join(SANDBOX_CONFIG.NODE_MODULES_PATH, '..', 'temp', 'syntax-check');
+    const tempFile = path.join(tempDir, `check-${Date.now()}.ts`);
+    const tempConfig = path.join(tempDir, `tsconfig-${Date.now()}.json`);
+
+    // 定义tsConfig变量在函数作用域内
+    const tsConfig = {
+        compilerOptions: {
+            ...SANDBOX_CONFIG.TS_CONFIG_JSON.compilerOptions,
+            target: options.target || SANDBOX_CONFIG.TS_CONFIG_JSON.compilerOptions.target,
+            module: options.module || SANDBOX_CONFIG.TS_CONFIG_JSON.compilerOptions.module,
+            strict: options.strict ?? true,
+            noImplicitAny: options.noImplicitAny ?? true,
+            noEmit: true
+        }
+    };
+
     try {
-        // 创建一个临时文件来验证语法
-        const tempFile = path.join(SANDBOX_CONFIG.NODE_MODULES_PATH, '..', 'temp', `syntax-check-${Date.now()}.ts`);
+        // 确保临时目录存在
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // 创建临时TypeScript文件
         fs.writeFileSync(tempFile, code);
 
-        // 使用tsc检查语法，但不生成输出
-        execSync(`npx tsc --noEmit ${tempFile}`);
+        // 创建临时的tsconfig.json
+        fs.writeFileSync(tempConfig, JSON.stringify(tsConfig, null, 2));
 
-        // 删除临时文件
-        fs.unlinkSync(tempFile);
+        // 使用tsc检查语法
+        const result = execSync(`npx tsc --project ${tempConfig}`, {
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
 
-        return { valid: true };
+        return {
+            valid: true,
+            config: tsConfig.compilerOptions
+        };
     } catch (error) {
+        let errorMessage = '未知错误';
+        let errorDetails: string[] = [];
+        let diagnostics: Array<{
+            file: string;
+            line: number;
+            character: number;
+            message: string;
+            code: number;
+        }> = [];
+
+        if (error instanceof Error) {
+            if ('stderr' in error) {
+                const stderr = (error as any).stderr?.toString() || '';
+                if (stderr) {
+                    errorMessage = stderr.split('\n')[0]; // 获取第一行错误信息
+                    errorDetails = stderr.split('\n').filter((line: string) => line.trim());
+
+                    // 解析错误诊断信息
+                    const diagnosticRegex = /^(.+?)\((\d+),(\d+)\): error TS(\d+): (.+)$/;
+                    errorDetails.forEach(line => {
+                        const match = line.match(diagnosticRegex);
+                        if (match) {
+                            diagnostics.push({
+                                file: match[1],
+                                line: parseInt(match[2]),
+                                character: parseInt(match[3]),
+                                code: parseInt(match[4]),
+                                message: match[5]
+                            });
+                        }
+                    });
+
+                    // 输出主要错误信息到终端
+                    console.error('TypeScript语法错误:');
+                    console.error('主要错误:', errorMessage);
+                    if (diagnostics.length > 0) {
+                        console.error('详细错误信息:');
+                        diagnostics.forEach(diag => {
+                            console.error(`  ${diag.file}(${diag.line},${diag.character}): ${diag.message}`);
+                        });
+                    }
+                }
+            } else {
+                errorMessage = error.message;
+                console.error('TypeScript语法错误:', errorMessage);
+            }
+        }
+
         return {
             valid: false,
-            error: error instanceof Error ? error.message : String(error)
+            error: errorMessage,
+            details: errorDetails,
+            config: tsConfig.compilerOptions,
+            diagnostics
         };
+    } finally {
+        // 清理临时文件
+        try {
+            if (fs.existsSync(tempFile)) {
+                fs.unlinkSync(tempFile);
+            }
+            if (fs.existsSync(tempConfig)) {
+                fs.unlinkSync(tempConfig);
+            }
+        } catch (cleanupError) {
+            console.error('清理临时文件时出错:', cleanupError);
+        }
     }
 } 
