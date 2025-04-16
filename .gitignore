@@ -1,4 +1,4 @@
 node_modules
 .DS_Store
-temp
+src/temp
 package-lock.json

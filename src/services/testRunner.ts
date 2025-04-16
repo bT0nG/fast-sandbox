@@ -76,7 +76,7 @@ export async function runTypeScriptTest(
         console.log(`[${sessionId}] 链接node_modules目录完成`);
 
         // 验证TypeScript代码语法
-        const syntaxResult = validateTypeScriptSyntax(tsCode, tsConfig);
+        const syntaxResult = validateTypeScriptSyntax(tsCode, tsConfig, sessionDir);
         if (!syntaxResult.valid) {
             console.error(`[${sessionId}] TypeScript语法错误:`, syntaxResult.error);
             if (syntaxResult.details) {
@@ -106,7 +106,7 @@ export async function runTypeScriptTest(
 
         // 编译TypeScript
         try {
-            compileTypeScript(sessionDir, sessionId);
+            await compileTypeScript(sessionDir, sessionId);
             console.log(`[${sessionId}] TypeScript编译完成`);
         } catch (compileError) {
             console.error(`[${sessionId}] 编译错误:`, compileError);
@@ -120,8 +120,6 @@ export async function runTypeScriptTest(
         // 运行Jest测试
         try {
             const testResult = runJestTests(sessionDir, sessionId);
-            console.log(`[${sessionId}] Jest测试完成，结果长度: ${testResult.length}`);
-
             // 确保结果非空
             const resultOutput = testResult.trim() || "测试执行成功，但没有输出内容";
 
