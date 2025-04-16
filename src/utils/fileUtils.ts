@@ -27,6 +27,9 @@ export function createSessionDir(): { sessionDir: string; sessionId: string } {
     // 创建会话目录
     fs.mkdirSync(sessionDir, { recursive: true });
 
+    // 设置会话目录环境变量
+    process.env.SESSION_DIR = sessionDir;
+
     console.log(`[${sessionId}] 创建临时目录：${sessionDir}`);
 
     return { sessionDir, sessionId };
@@ -71,12 +74,6 @@ export function writeConfigFiles(sessionDir: string, jestConfig: string): void {
         path.join(sessionDir, 'package.json'),
         JSON.stringify(packageJson, null, 2)
     );
-
-    // 创建dist目录
-    const distDir = path.join(sessionDir, 'dist');
-    if (!fs.existsSync(distDir)) {
-        fs.mkdirSync(distDir, { recursive: true });
-    }
 }
 
 /**
@@ -159,11 +156,6 @@ export function createNodeModulesSymlink(
  */
 export function cleanupSession(sessionDir: string): void {
     try {
-        if (!FS_CONFIG.CLEANUP_TEMP_FILES) {
-            console.log(`保留临时目录: ${sessionDir}`);
-            return;
-        }
-
         // 尝试删除node_modules symlink
         const nodeModulesPath = path.join(sessionDir, 'node_modules');
         if (fs.existsSync(nodeModulesPath)) {

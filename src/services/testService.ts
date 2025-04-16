@@ -13,7 +13,7 @@ export function runJestTests(sessionDir: string, sessionId: string): string {
     const testFilePath = path.join(sessionDir, 'code.test.ts');
     if (fs.existsSync(testFilePath)) {
         const testContent = fs.readFileSync(testFilePath, 'utf-8');
-        console.log(`[${sessionId}] 测试文件内容预览: ${testContent.substring(0, 100)}...`);
+        console.log(`[${sessionId}] 测试文件内容预览: ${testContent}...`);
     }
 
     try {
@@ -98,13 +98,10 @@ export function runJestTests(sessionDir: string, sessionId: string): string {
         let testResult = '';
         if (fs.existsSync(outputFile)) {
             testResult = fs.readFileSync(outputFile, 'utf-8');
-            console.log(`[${sessionId}] 读取测试结果文件，长度: ${testResult.length}`);
         } else {
             console.error(`[${sessionId}] 警告: 测试结果文件不存在!`);
             testResult = "测试执行完成，但无法读取结果文件";
         }
-
-        console.log(`[${sessionId}] 测试结果:\n${testResult}`);
 
         return testResult;
     } catch (error) {
